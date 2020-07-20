@@ -1,0 +1,3 @@
+Flask==1.1.2
+PyQRCode==1.2.1
+filetype~=1.0.7
