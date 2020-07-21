@@ -11,15 +11,26 @@ import traceback
 
 
 class AnyShare(flask.Flask):
-	def __init__(self, share_type):
+	def __init__(self):
 		flask.Flask.__init__(self, "AnyShare")
-		self.share_type = share_type
+		self.share_type = None
 		self.file = None
 		self.was_downloaded = False
 		self.was_uploaded = False
 		self.file_dir = "any_drop_files"
 		self.stop_all_services = False
 		self.port = 5000
+		self.is_reset = False
+
+	def reset(self):
+		self.is_reset = True
+		self.share_type = None
+		self.file = None
+		self.was_downloaded = False
+		self.was_uploaded = False
+		self.file_dir = "any_drop_files"
+		self.stop_all_services = False
+		self.open_start_page()
 
 	def run(self):
 		self.register_services()
@@ -39,6 +50,52 @@ class AnyShare(flask.Flask):
 				self.port += 1
 
 	def register_services(self):
+		@self.route("/", methods=["POST", "GET"])
+		def main_page():
+			if flask.request.method == 'POST':
+				self.share_type = flask.request.values.get('share_type')
+
+				if self.share_type == "send":
+					return flask.redirect(flask.url_for("start"))
+				elif self.share_type == "receive":
+					Thread(target=self.check_upload_status).start()
+					return flask.redirect(flask.url_for("share"))
+				elif self.share_type == "exit":
+					self.stop_all_services = True
+					Thread(target=self.exit_delay).start()
+					return """
+					<h2>Thanks For Using AnyDrop!</h2>
+					<h3>Shutting down..</h3>
+					"""
+
+			else:
+				header = "Welcome to AnyDrop!"
+				if self.is_reset:
+					header = "AnyDrop Again!"
+				return f"""
+					<html>
+					<body>
+					<h2>{header}</h2>
+					<h3>Selected a share type to get started</h3>
+					<form action = "http://{self.get_local_ip()}:{self.port}/" method = "POST"
+					enctype = "multipart/form-data">
+					<input type = "hidden" name = "share_type" value="send" />
+					<input type = "submit" value="Send"/>
+					</form>
+					<form action = "http://{self.get_local_ip()}:{self.port}/" method = "POST"
+					enctype = "multipart/form-data">
+					<input type = "hidden" name = "share_type" value="receive" />
+					<input type = "submit" value="Receive"/>
+					</form>
+					<form action = "http://{self.get_local_ip()}:{self.port}/" method = "POST"
+					enctype = "multipart/form-data">
+					<input type = "hidden" name = "share_type" value="exit" />
+					<input type = "submit" value="Exit"/>
+					</form>
+					</body>
+					</html>
+				"""
+
 		@self.route("/upload/", methods=["POST"])
 		def upload_file():
 			f = flask.request.files['file']
@@ -57,16 +114,6 @@ class AnyShare(flask.Flask):
 				return flask.redirect(flask.url_for("share"))
 			elif self.share_type == "receive":
 				return "File sent!"
-
-	def open_start_page(self):
-		if self.share_type == "send":
-			webbrowser.open_new_tab(f"http://localhost:{self.port}/start/")
-		elif self.share_type == "receive":
-			Thread(target=self.check_upload_status).start()
-			webbrowser.open_new_tab(f"http://localhost:{self.port}/share/")
-		else:
-			print(f"Invalid share_type: {self.share_type}")
-			exit()
 
 		@self.route("/share/", methods=["GET"])
 		def share():
@@ -90,7 +137,7 @@ class AnyShare(flask.Flask):
 			return flask.send_file(qr_path, cache_timeout=1)
 
 		@self.route("/start/")
-		def main():
+		def start():
 			if self.stop_all_services:
 				return "Any Drop Complete, re-start to send again"
 
@@ -120,6 +167,9 @@ class AnyShare(flask.Flask):
 			else:
 				return "Waiting for file upload"
 
+	def open_start_page(self):
+		webbrowser.open_new_tab(f"http://localhost:{self.port}/")
+
 	def get_local_ip(self):
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		try:
@@ -139,7 +189,8 @@ class AnyShare(flask.Flask):
 				for f in os.listdir(self.file_dir):
 					os.remove(os.path.join(self.file_dir, f))
 				print("Any Drop Complete!")
-				os._exit(1)
+				self.reset()
+				return
 			print("No download detected")
 			sleep(1)
 
@@ -155,22 +206,14 @@ class AnyShare(flask.Flask):
 				for f in os.listdir(self.file_dir):
 					os.remove(os.path.join(self.file_dir, f))
 				print("Any Drop Complete!")
-				os._exit(1)
+				self.reset()
+				return
 			print("No upload detected")
 			sleep(1)
 
+	def exit_delay(self):
+		sleep(5)
+		os._exit(1)
 
-arg_handler = argparse.ArgumentParser()
-arg_handler.add_argument(
-	"share_type",
-	help="The share type for this run of Any Drop: "
-		 "use 'send' to share files from you to others"
-		 " or 'receive' to get have files shared to you",
-	choices=["send", "receive"],
-	default="send",
-	nargs='?'
-)
 
-type = arg_handler.parse_args().share_type
-
-AnyShare(share_type=type).run()
+AnyShare().run()
