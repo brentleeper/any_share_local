@@ -63,14 +63,14 @@ class AnyShare(flask.Flask):
 					self.stop_all_services = True
 					Thread(target=self.exit_delay).start()
 					return """
-					<h2>Thanks For Using AnyDrop!</h2>
+					<h2>Thanks For Using AnyShare!</h2>
 					<h3>Shutting down..</h3>
 					"""
 
 			else:
-				header = "Welcome to AnyDrop!"
+				header = "Welcome to AnyShare!"
 				if self.is_reset:
-					header = "AnyDrop Again!"
+					header = "AnyShare Again!"
 				return f"""
 					<html>
 					<body>
