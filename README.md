@@ -3,7 +3,7 @@ AnyShare Local allows you to quickly share any file between any device
 
 
 AnyShare Local allows you to quickly send and receive files from devices on the same local network.
-Simple start the app and follow the steps to share!
+Simple start the app, select your share type, and scan the QR Code to share!
 
 PS - Please ignore the lack of front end design.. :) 
 Still more to learn!
