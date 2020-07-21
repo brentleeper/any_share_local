@@ -77,7 +77,7 @@ class AnyShare(flask.Flask):
 					<html>
 					<body>
 					<h2>{header}</h2>
-					<h3>Selected a share type to get started</h3>
+					<h3>Selecte a share type to get started</h3>
 					<form action = "http://{self.get_local_ip()}:{self.port}/" method = "POST"
 					enctype = "multipart/form-data">
 					<input type = "hidden" name = "share_type" value="send" />
