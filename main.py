@@ -16,10 +16,13 @@ class AnyShare(flask.Flask):
 		self.file = None
 		self.was_downloaded = False
 		self.was_uploaded = False
-		self.file_dir = "any_drop_files"
+		self.file_dir = os.path.join(os.path.expanduser("~"), "any_share_files")
 		self.stop_all_services = False
 		self.port = 5000
 		self.is_reset = False
+
+		if not os.path.isdir(self.file_dir):
+			os.mkdir(self.file_dir)
 
 	def reset(self):
 		self.is_reset = True
@@ -27,7 +30,6 @@ class AnyShare(flask.Flask):
 		self.file = None
 		self.was_downloaded = False
 		self.was_uploaded = False
-		self.file_dir = "any_drop_files"
 		self.stop_all_services = False
 		self.open_start_page()
 
@@ -98,9 +100,6 @@ class AnyShare(flask.Flask):
 		@self.route("/upload/", methods=["POST"])
 		def upload_file():
 			f = flask.request.files['file']
-
-			if not os.path.isdir(self.file_dir):
-				os.mkdir(self.file_dir)
 
 			f.save(os.path.join(self.file_dir, f.filename))
 			self.was_uploaded = True
