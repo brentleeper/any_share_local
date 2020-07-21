@@ -1,9 +1,9 @@
 # any_share_local
-AnyShare Local allows you to quickly share any file between any platforms
+AnyShare Local allows you to quickly share any file between any device
 
 
-AnyShare Local can be started in 1 of 2 modes: Send or Receive
+AnyShare Local allows you to quickly send and receive files from devices on the same local network.
+Simple start the app and follow the steps to share!
 
--Send: Quickly share a file from your system to others
-
--Receive: Quickly receive a file from others
+PS - Please ignore the lack of front end design.. :) 
+Still more to learn!
