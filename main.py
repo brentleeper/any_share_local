@@ -20,6 +20,7 @@ class AnyShare(flask.Flask):
 		self.stop_all_services = False
 		self.port = 5000
 		self.is_reset = False
+		self.start_success = False
 
 		if not os.path.isdir(self.file_dir):
 			os.mkdir(self.file_dir)
@@ -35,10 +36,11 @@ class AnyShare(flask.Flask):
 
 	def run(self):
 		self.register_services()
-		self.open_start_page()
+		Thread(target=self.open_start_page).start()
 
 		while True:
 			try:
+				self.start_success = True
 				flask.Flask.run(
 					self,
 					host="0.0.0.0",
@@ -47,7 +49,8 @@ class AnyShare(flask.Flask):
 					use_reloader=False
 				)
 			except:
-				traceback.print_exc()
+				print(f"Port {self.port} unavailable - trying the next port")
+				self.start_success = False
 				self.port += 1
 
 	def register_services(self):
@@ -77,7 +80,7 @@ class AnyShare(flask.Flask):
 					<html>
 					<body>
 					<h2>{header}</h2>
-					<h3>Selecte a share type to get started</h3>
+					<h3>Selected a share type to get started</h3>
 					<form action = "http://{self.get_local_ip()}:{self.port}/" method = "POST"
 					enctype = "multipart/form-data">
 					<input type = "hidden" name = "share_type" value="send" />
@@ -119,7 +122,7 @@ class AnyShare(flask.Flask):
 
 			ip_address = self.get_local_ip()
 
-			qr_path = os.path.join(self.file_dir, "qr.svg")
+			qr_path = os.path.join(self.file_dir, f"qr_{self.port}.svg")
 
 			if self.share_type == "send":
 				url = pyqrcode.create(f"http://{ip_address}:{self.port}/download/")
@@ -166,7 +169,16 @@ class AnyShare(flask.Flask):
 				return "Waiting for file upload"
 
 	def open_start_page(self):
+		check_ct = 0
+		while check_ct < 2:
+			if self.start_success:
+				check_ct += 1
+			else:
+				check_ct = 0
+		sleep(1)
+
 		webbrowser.open_new_tab(f"http://localhost:{self.port}/")
+		return
 
 	def get_local_ip(self):
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
