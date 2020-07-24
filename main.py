@@ -6,7 +6,6 @@ import webbrowser
 import filetype
 from threading import Thread
 from time import sleep
-import traceback
 
 
 class AnyShare(flask.Flask):
@@ -54,10 +53,10 @@ class AnyShare(flask.Flask):
 				self.port += 1
 
 	def register_services(self):
-		@self.route("/", methods=["POST", "GET"])
+		@self.route("/", methods=["GET"])
 		def main_page():
-			if flask.request.method == 'POST':
-				self.share_type = flask.request.values.get('share_type')
+			if "share_type" in flask.request.args:
+				self.share_type = flask.request.args.get('share_type')
 
 				if self.share_type == "send":
 					return flask.redirect(flask.url_for("start"))
@@ -67,9 +66,10 @@ class AnyShare(flask.Flask):
 				elif self.share_type == "exit":
 					self.stop_all_services = True
 					Thread(target=self.exit_delay).start()
-					return """
+					return f"""
 					<h2>Thanks For Using AnyShare!</h2>
 					<h3>Shutting down..</h3>
+					{self.inject_close_check_javascript()}
 					"""
 
 			else:
@@ -78,24 +78,20 @@ class AnyShare(flask.Flask):
 					header = "AnyShare Again!"
 				return f"""
 					<html>
+					<head>
+						<script>
+							function openAndClose(urlToOpen){{
+								window.open(urlToOpen);
+								window.close();
+							}}
+						</script>
+					</head>
 					<body>
 					<h2>{header}</h2>
-					<h3>Select a share type to get started</h3>
-					<form action = "http://{self.get_local_ip()}:{self.port}/" method = "POST"
-					enctype = "multipart/form-data">
-					<input type = "hidden" name = "share_type" value="send" />
-					<input type = "submit" value="Send"/>
-					</form>
-					<form action = "http://{self.get_local_ip()}:{self.port}/" method = "POST"
-					enctype = "multipart/form-data">
-					<input type = "hidden" name = "share_type" value="receive" />
-					<input type = "submit" value="Receive"/>
-					</form>
-					<form action = "http://{self.get_local_ip()}:{self.port}/" method = "POST"
-					enctype = "multipart/form-data">
-					<input type = "hidden" name = "share_type" value="exit" />
-					<input type = "submit" value="Exit"/>
-					</form>
+					<h3>Selected a share type to get started</h3>
+					<button onclick="openAndClose('http://{self.get_local_ip()}:{self.port}/?share_type=send')">Send</button>
+					<button onclick="openAndClose('http://{self.get_local_ip()}:{self.port}/?share_type=receive')">Receive</button>
+					<button onclick="openAndClose('http://{self.get_local_ip()}:{self.port}/?share_type=exit')">Exit</button>
 					</body>
 					</html>
 				"""
@@ -118,6 +114,14 @@ class AnyShare(flask.Flask):
 
 		@self.route("/share/", methods=["GET"])
 		def share():
+			html = f"""
+			<img src="http://{self.get_local_ip()}:{self.port}/share/QR/" alt="qr code">
+			{self.inject_close_check_javascript()}
+			"""
+			return html
+
+		@self.route("/share/QR/", methods=["GET"])
+		def share_qr():
 			print(f"Generating QR code for share_type: {self.share_type}")
 
 			ip_address = self.get_local_ip()
@@ -168,6 +172,33 @@ class AnyShare(flask.Flask):
 			else:
 				return "Waiting for file upload"
 
+		@self.route("/close_check/", methods=["GET"])
+		def close_check():
+			return str(self.stop_all_services)
+
+	def inject_close_check_javascript(self): # todo
+		return f"""
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+		<script>
+			function close_check() {{
+				$.ajax({{url: 'http://{self.get_local_ip()}:{self.port}/close_check/', 
+					success: function(result){{
+						if(result === "True"){{
+							window.open('','_parent',''); 
+    						window.close();
+						}}
+						setTimeout(close_check, 3000);
+					}},
+					error: function() {{
+						window.open('','_parent',''); 
+    					window.close();
+					}}
+				}})
+			}}
+		</script>
+		<body onload="setTimeout(close_check, 3000)">
+		"""
+
 	def open_start_page(self):
 		check_ct = 0
 		while check_ct < 2:
@@ -194,7 +225,7 @@ class AnyShare(flask.Flask):
 		while True:
 			if self.was_downloaded:
 				print("download detected")
-				sleep(15)
+				sleep(5)
 				print("cleaning up!")
 				for f in os.listdir(self.file_dir):
 					os.remove(os.path.join(self.file_dir, f))
@@ -209,9 +240,9 @@ class AnyShare(flask.Flask):
 			if self.was_uploaded:
 				print("Upload detected - opening download page")
 				webbrowser.open_new_tab(f"http://localhost:{self.port}/download/")
-				sleep(3)
+				sleep(10)
 				self.stop_all_services = True
-				sleep(15)
+				sleep(3)
 				print("cleaning up!")
 				for f in os.listdir(self.file_dir):
 					os.remove(os.path.join(self.file_dir, f))
