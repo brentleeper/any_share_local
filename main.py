@@ -105,7 +105,7 @@ class AnyShare(flask.Flask):
 			self.file = f.filename
 
 			if self.stop_all_services:
-				return "Any Drop Complete, re-start to send again"
+				return "Any Share Complete, re-start to send again"
 
 			if self.share_type == "send":
 				return flask.redirect(flask.url_for("share"))
@@ -114,8 +114,15 @@ class AnyShare(flask.Flask):
 
 		@self.route("/share/", methods=["GET"])
 		def share():
+			ip_address = self.get_local_ip()
+			if self.share_type == "send":
+				url = f"http://{ip_address}:{self.port}/download/"
+			elif self.share_type == "receive":
+				url = f"http://{ip_address}:{self.port}/start/"
+
 			html = f"""
 			<img src="http://{self.get_local_ip()}:{self.port}/share/QR/" alt="qr code">
+			<h2>{url}</h2>
 			{self.inject_close_check_javascript()}
 			"""
 			return html
@@ -137,14 +144,14 @@ class AnyShare(flask.Flask):
 				url.svg(qr_path, scale=15)
 
 			if self.stop_all_services:
-				return "Any Drop Complete, re-start to send again"
+				return "Any Share Complete, re-start to send again"
 
 			return flask.send_file(qr_path, cache_timeout=1)
 
 		@self.route("/start/")
 		def start():
 			if self.stop_all_services:
-				return "Any Drop Complete, re-start to send again"
+				return "Any Share Complete, re-start to send again"
 
 			return f"""
 				<html>
@@ -161,7 +168,7 @@ class AnyShare(flask.Flask):
 		@self.route("/download/", methods=["GET"])
 		def download():
 			if self.stop_all_services:
-				return "Any Drop Complete, re-start to send again"
+				return "Any Share Complete, re-start to send again"
 
 			if self.file:
 				self.was_downloaded = True
@@ -229,7 +236,7 @@ class AnyShare(flask.Flask):
 				print("cleaning up!")
 				for f in os.listdir(self.file_dir):
 					os.remove(os.path.join(self.file_dir, f))
-				print("Any Drop Complete!")
+				print("Any Share Complete!")
 				self.reset()
 				return
 			print("No download detected")
@@ -246,7 +253,7 @@ class AnyShare(flask.Flask):
 				print("cleaning up!")
 				for f in os.listdir(self.file_dir):
 					os.remove(os.path.join(self.file_dir, f))
-				print("Any Drop Complete!")
+				print("Any Share Complete!")
 				self.reset()
 				return
 			print("No upload detected")
