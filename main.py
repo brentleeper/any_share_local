@@ -4,7 +4,6 @@ from flask_cors import CORS
 import pyqrcode
 import socket
 import webbrowser
-import filetype
 from threading import Thread
 from time import sleep
 
@@ -52,7 +51,7 @@ class AnyShare(flask.Flask):
 					use_reloader=False
 				)
 			except:
-				print(f"Port {self.port} unavailable - trying the next port")
+				self.logger.info(f"Port {self.port} unavailable - trying the next port")
 				self.start_success = False
 				self.port += 1
 
@@ -119,7 +118,8 @@ class AnyShare(flask.Flask):
 			if self.share_type == "send":
 				return flask.redirect(flask.url_for("share"))
 			elif self.share_type == "receive":
-				return "<h2>File sent!</h2>" + self.inject_close_check_javascript()
+				return "<h2>File sent!</h2>" \
+					   "<body onload='setTimeout(window.close, 5000)'>"
 
 		@self.route("/share/", methods=["GET"])
 		def share():
@@ -152,7 +152,7 @@ class AnyShare(flask.Flask):
 
 		@self.route("/share/QR/", methods=["GET"])
 		def share_qr():
-			print(f"Generating QR code for share_type: {self.share_type}")
+			self.logger.info(f"Generating QR code for share_type: {self.share_type}")
 
 			qr_path = os.path.join(self.file_dir, f"qr_{self.port}.svg")
 
@@ -209,29 +209,9 @@ class AnyShare(flask.Flask):
 			<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 			<script>
 				function download_file() {{
-					$.ajax({{url: 'http://{self.ip_address}:{self.port}/download/file/', 
-						xhrFields: {{
-							responseType: 'blob'
-						}},
-						success: function (data) {{
-							var a = document.createElement('a');
-							var url = window.URL.createObjectURL(data);
-							a.href = url;
-							a.download = '{self.file}';
-							document.body.append(a);
-							a.click();
-							a.remove();
-							window.URL.revokeObjectURL(url);
-							document.getElementById("main_text").innerHTML = "Download Complete";
-							setTimeout(window.close, 6000);
-						}},
-						error: function() {{
-							location.replace("http://{self.ip_address}:{self.port}/download/file/");
-							document.getElementById("main_text").innerHTML = "Download Complete";
-							alert("Hmm.. for some reason AnyShare is not able to close this window. You may need to close it manually.");
-							setTimeout(window.close, 3000);
-						}}
-					}})
+					document.getElementById("main_text").innerHTML = "AnyShare Download Complete";
+					location.replace("http://{self.ip_address}:{self.port}/download/file/");
+					setTimeout(window.close, 15000);
 				}}
 			</script>
 			<body onload="setTimeout(download_file, 1000)">
@@ -243,7 +223,7 @@ class AnyShare(flask.Flask):
 			if self.file:
 				self.was_downloaded = True
 				self.stop_all_services = True
-				print("Setting download status to True")
+				self.logger.info("Setting download status to True")
 				file_path = os.path.join(self.file_dir, self.file)
 				return flask.send_file(file_path, as_attachment=True, cache_timeout=1)
 			else:
@@ -267,7 +247,7 @@ class AnyShare(flask.Flask):
 				self.reset()
 
 			return """
-			<body onload="setTimeout(window.close(), 3000)"></body>
+			<body onload="setTimeout(window.close, 3000)"></body>
 			<h2>Resetting...</h2>
 			"""
 
@@ -319,37 +299,38 @@ class AnyShare(flask.Flask):
 	def check_download_status(self):
 		while True:
 			if self.was_downloaded:
-				print("download detected")
+
+				self.logger.info("download detected")
 				sleep(5)
-				print("cleaning up!")
+				self.logger.info("cleaning up!")
 				for f in os.listdir(self.file_dir):
 					os.remove(os.path.join(self.file_dir, f))
-				print("Any Share Complete!")
+				self.logger.info("Any Share Complete!")
 				self.reset()
 				return
 			if self.cancel_download:
-				print("Cancelling Download")
+				self.logger.info("Cancelling Download")
 				self.cancel_download = False
 				return
 
-			print("No download detected")
+			self.logger.info("No download detected")
 			sleep(1)
 
 	def check_upload_status(self):
 		while True:
 			if self.was_uploaded:
-				print("Starting download detection")
+				self.logger.info("Starting download detection")
 				Thread(target=self.check_download_status).start()
 				sleep(.2)
-				print("Upload detected - opening download page")
+				self.logger.info("Upload detected - opening download page")
 				webbrowser.open_new_tab(f"http://localhost:{self.port}/download/")
 				return
 			if self.cancel_receive_upload:
-				print("Cancelling Upload")
+				self.logger.info("Cancelling Upload")
 				self.cancel_receive_upload = False
 				return
 
-			print("No upload detected")
+			self.logger.info("No upload detected")
 			sleep(1)
 
 	def exit_delay(self):
